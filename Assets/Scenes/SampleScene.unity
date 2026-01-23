@@ -684,7 +684,7 @@ Transform:
   m_GameObject: {fileID: 915482166}
   serializedVersion: 2
   m_LocalRotation: {x: 0.7071068, y: 0, z: 0, w: 0.7071068}
-  m_LocalPosition: {x: 2.74778, y: -0, z: 6.01}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 50, y: 25, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -1002,6 +1002,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1488437612}
+  - component: {fileID: 1488437613}
   m_Layer: 0
   m_Name: Car
   m_TagString: Untagged
@@ -1018,13 +1019,40 @@ Transform:
   m_GameObject: {fileID: 1488437611}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 2.44843, y: -0, z: 12.12371}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 1563779440}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!54 &1488437613
+Rigidbody:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1488437611}
+  serializedVersion: 5
+  m_Mass: 1
+  m_LinearDamping: 0
+  m_AngularDamping: 0.05
+  m_CenterOfMass: {x: 0, y: 0, z: 0}
+  m_InertiaTensor: {x: 1, y: 1, z: 1}
+  m_InertiaRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ImplicitCom: 1
+  m_ImplicitTensor: 1
+  m_UseGravity: 1
+  m_IsKinematic: 0
+  m_Interpolate: 1
+  m_Constraints: 116
+  m_CollisionDetection: 0
 --- !u!1 &1552978055
 GameObject:
   m_ObjectHideFlags: 0
@@ -1162,7 +1190,7 @@ Transform:
   m_GameObject: {fileID: 1563779439}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalPosition: {x: 0, y: -0.315, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -1194,7 +1222,7 @@ Transform:
   m_GameObject: {fileID: 1811488099}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -16.13082, y: 0, z: 13.94211}
+  m_LocalPosition: {x: -16.666668, y: 0, z: 8}
   m_LocalScale: {x: 1, y: 0.1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -1269,16 +1297,50 @@ PrefabInstance:
       propertyPath: m_Name
       value: SAT 1
       objectReference: {fileID: 0}
+    - target: {fileID: 6577644326391896332, guid: 7dc46aab6b2b961439bc90cd5e95b60c, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: -0.0055726115
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: -4456806528835373983, guid: 7dc46aab6b2b961439bc90cd5e95b60c, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1995714500}
   m_SourcePrefab: {fileID: 100100000, guid: 7dc46aab6b2b961439bc90cd5e95b60c, type: 3}
 --- !u!4 &1995714498 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: 7dc46aab6b2b961439bc90cd5e95b60c, type: 3}
   m_PrefabInstance: {fileID: 1995714497}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &1995714499 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: -4456806528835373983, guid: 7dc46aab6b2b961439bc90cd5e95b60c, type: 3}
+  m_PrefabInstance: {fileID: 1995714497}
+  m_PrefabAsset: {fileID: 0}
+--- !u!64 &1995714500
+MeshCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1995714499}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 5
+  m_Convex: 1
+  m_CookingOptions: 30
+  m_Mesh: {fileID: 208424169020887264, guid: 7dc46aab6b2b961439bc90cd5e95b60c, type: 3}
 --- !u!1 &2082699028
 GameObject:
   m_ObjectHideFlags: 0
