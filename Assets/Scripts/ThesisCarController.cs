@@ -1,50 +1,108 @@
 using UnityEngine;
+using TMPro;
 
 public class ThesisCarController : MonoBehaviour
 {
-    [Header("Thesis Variables")]
-    // We will change these via code later for Easy/Hard modes
-    public float forwardSpeed = 20f; 
-    public float laneSpeed = 10f; 
+    [Header("Speed Settings")]
+    public float maxSpeed = 100f;
+    public float acceleration = 40f; 
+    public float deceleration = 30f; 
+    public float friction = 10f;      
     
-    [Header("Limits")]
-    public float roadWidth = 5f; // Stops player from going off-road
+    [Header("Steering Settings")]
+    public float laneSpeed = 40f; // High speed, but controlled by rotation
+    public float roadWidth = 5f;
+
+    [Header("Visuals")]
+    public Transform visualModel; 
+    public float rideHeight = 1.0f; 
+    
+    // THE MAGIC SAUCE
+    public float swayAmount = 30f; // Angle of turn
+    public float turnSpeed = 15f;  // How fast the car rotates (Higher = Snappier)
+
+    [Header("UI")]
+    public TMP_Text speedometerText;
+
+    public float currentForwardSpeed = 0f;
+    
+    // Private variables
+    private float currentYAngle = 0f;
 
     void Update()
     {
-        MoveForward();
+        HandleSpeed();
         HandleSteering();
+        ApplyMovement();
+        UpdateUI();
     }
 
-    void MoveForward()
+    void UpdateUI()
     {
-        // 1. Move Forward constantly (Endless Runner style)
-        // Time.deltaTime ensures smooth movement on all computers
-        transform.Translate(Vector3.forward * forwardSpeed * Time.deltaTime);
+        if (speedometerText != null)
+            speedometerText.text = Mathf.RoundToInt(currentForwardSpeed).ToString() + " MPH";
+    }
+
+    void HandleSpeed()
+    {
+        float verticalInput = Input.GetAxis("Vertical"); 
+
+        if (verticalInput > 0)
+            currentForwardSpeed += acceleration * verticalInput * Time.deltaTime;
+        else if (verticalInput < 0)
+            currentForwardSpeed += deceleration * verticalInput * Time.deltaTime;
+        else
+        {
+            if (currentForwardSpeed > 0)
+            {
+                currentForwardSpeed -= friction * Time.deltaTime;
+                if (currentForwardSpeed < 0) currentForwardSpeed = 0;
+            }
+            else if (currentForwardSpeed < 0)
+            {
+                currentForwardSpeed += friction * Time.deltaTime;
+                if (currentForwardSpeed > 0) currentForwardSpeed = 0;
+            }
+        }
+        currentForwardSpeed = Mathf.Clamp(currentForwardSpeed, -20f, maxSpeed);
     }
 
     void HandleSteering()
     {
-        // 2. Get Input (Left/Right arrows or A/D)
-        float horizontalInput = Input.GetAxis("Horizontal");
+        float horizontalInput = Input.GetAxisRaw("Horizontal"); 
 
-        // 3. Move Left/Right
-        Vector3 moveVector = Vector3.right * horizontalInput * laneSpeed * Time.deltaTime;
-        transform.Translate(moveVector);
+        // 1. ROTATE FIRST
+        // Calculate where we WANT to face
+        float targetAngle = horizontalInput * swayAmount;
 
-        // 4. Clamp Position (Keep car on the road)
-        // We act directly on the position to strictly enforce boundaries
+        // Smoothly rotate towards that angle
+        // 'MoveTowards' is linear and predictable (better than Lerp for this)
+        currentYAngle = Mathf.MoveTowards(currentYAngle, targetAngle, turnSpeed * Time.deltaTime * 10f);
+
+        // Apply rotation to the visual model
+        if (visualModel != null)
+        {
+            visualModel.localRotation = Quaternion.Euler(0, currentYAngle, 0);
+        }
+
+        // 2. MOVE BASED ON ROTATION
+        // We calculate movement percent based on how much we are currently turned.
+        // If angle is 0, movement is 0. If angle is Max, movement is Max.
+        float movementFactor = currentYAngle / swayAmount; // Returns value between -1 and 1
+        
+        // Move sideways
+        Vector3 moveVector = Vector3.right * movementFactor * laneSpeed * Time.deltaTime;
+        transform.Translate(moveVector, Space.World);
+
+        // Clamp to Road
         Vector3 clampedPosition = transform.position;
         clampedPosition.x = Mathf.Clamp(clampedPosition.x, -roadWidth, roadWidth);
         transform.position = clampedPosition;
+    }
 
-        // 5. Visual Tilt (Optional Juice)
-        // Tilts the car slightly when turning for visual feedback
-        float tiltAngle = -horizontalInput * 10f;
-        // We only rotate the visual model, not the movement direction
-        // (Assumes the car model is a child of this object, or we rotate the mesh inside)
-        // For now, we rotate the whole object slightly on Z axis
-        Quaternion targetRotation = Quaternion.Euler(0, 0, tiltAngle);
-        transform.rotation = Quaternion.Lerp(transform.rotation, targetRotation, Time.deltaTime * 5f);
+    void ApplyMovement()
+    {
+        transform.Translate(Vector3.forward * currentForwardSpeed * Time.deltaTime, Space.World);
+        transform.position = new Vector3(transform.position.x, rideHeight, transform.position.z);
     }
 }

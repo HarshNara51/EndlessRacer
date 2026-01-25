@@ -2,30 +2,35 @@ using UnityEngine;
 
 public class ThesisCameraFollow : MonoBehaviour
 {
-    public Transform target; // The Car
-    public Vector3 offset = new Vector3(0, 5, -10); // Standard racing view
-    public float smoothSpeed = 0.125f; // Small delay for "weight" feel
+    public Transform target;
+
+    [Header("Camera Settings")]
+    public Vector3 offset = new Vector3(0, 5, -8); // Slightly closer default
+    
+    // LOWER number = Stiffer, less drift (Fixes "Too far away")
+    // 0.05 is very snappy. 0.2 is loose.
+    public float smoothTime = 0.05f; 
+    
+    private Vector3 currentVelocity;
 
     void LateUpdate()
     {
         if (target == null) return;
 
-        // 1. Calculate where the camera SHOULD be
-        // We only follow the car's Z (forward) and X (steering), 
-        // but we keep our own steady Y (height) logic or just follow completely.
-        Vector3 desiredPosition = target.position + offset;
+        // 1. Calculate ideal spot
+        Vector3 targetPosition = target.position + offset;
 
-        // 2. Smoothly slide to that position (Lerp)
-        // This prevents the camera from feeling "robotic"
-        Vector3 smoothedPosition = Vector3.Lerp(transform.position, desiredPosition, smoothSpeed);
+        // 2. Override Z (Forward/Back) to prevent "Rubber Banding"
+        // At high speeds, we snap the Z axis harder so the car doesn't run away.
+        Vector3 finalPosition = Vector3.SmoothDamp(transform.position, targetPosition, ref currentVelocity, smoothTime);
         
-        // 3. Apply position
-        // We lock X to a tighter range if you don't want the camera swinging too wildy,
-        // But for now, simple following is best.
-        transform.position = smoothedPosition;
+        // OPTIONAL: If the camera is still too jittery at 100mph, uncomment the line below.
+        // It forces the camera to lock EXACTLY to the car's forward speed, smoothing only the side-to-side.
+        // finalPosition.z = target.position.z + offset.z;
 
-        // 4. Look at the car (Optional)
-        // Helps keep the car centered even if the camera lags slightly
+        transform.position = finalPosition;
+
+        // 3. Look at car (Optional - disable if it feels dizzy)
         transform.LookAt(target);
     }
 }
