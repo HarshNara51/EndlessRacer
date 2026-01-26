@@ -10,23 +10,23 @@ public class ThesisCarController : MonoBehaviour
     public float friction = 10f;      
     
     [Header("Steering Settings")]
-    public float laneSpeed = 40f; // High speed, but controlled by rotation
+    public float laneSpeed = 40f; 
     public float roadWidth = 5f;
 
     [Header("Visuals")]
     public Transform visualModel; 
     public float rideHeight = 1.0f; 
+    public float swayAmount = 30f; 
+    public float turnSpeed = 15f;
     
-    // THE MAGIC SAUCE
-    public float swayAmount = 30f; // Angle of turn
-    public float turnSpeed = 15f;  // How fast the car rotates (Higher = Snappier)
+    public Transform[] wheels; 
+    // INCREASED DEFAULT: Make this 50 or 100 in Inspector for fast spin!
+    public float wheelSpinSpeed = 50f; 
 
     [Header("UI")]
     public TMP_Text speedometerText;
 
     public float currentForwardSpeed = 0f;
-    
-    // Private variables
     private float currentYAngle = 0f;
 
     void Update()
@@ -34,6 +34,7 @@ public class ThesisCarController : MonoBehaviour
         HandleSpeed();
         HandleSteering();
         ApplyMovement();
+        AnimateWheels(); 
         UpdateUI();
     }
 
@@ -71,30 +72,16 @@ public class ThesisCarController : MonoBehaviour
     {
         float horizontalInput = Input.GetAxisRaw("Horizontal"); 
 
-        // 1. ROTATE FIRST
-        // Calculate where we WANT to face
         float targetAngle = horizontalInput * swayAmount;
-
-        // Smoothly rotate towards that angle
-        // 'MoveTowards' is linear and predictable (better than Lerp for this)
         currentYAngle = Mathf.MoveTowards(currentYAngle, targetAngle, turnSpeed * Time.deltaTime * 10f);
 
-        // Apply rotation to the visual model
         if (visualModel != null)
-        {
             visualModel.localRotation = Quaternion.Euler(0, currentYAngle, 0);
-        }
 
-        // 2. MOVE BASED ON ROTATION
-        // We calculate movement percent based on how much we are currently turned.
-        // If angle is 0, movement is 0. If angle is Max, movement is Max.
-        float movementFactor = currentYAngle / swayAmount; // Returns value between -1 and 1
-        
-        // Move sideways
+        float movementFactor = currentYAngle / swayAmount; 
         Vector3 moveVector = Vector3.right * movementFactor * laneSpeed * Time.deltaTime;
         transform.Translate(moveVector, Space.World);
 
-        // Clamp to Road
         Vector3 clampedPosition = transform.position;
         clampedPosition.x = Mathf.Clamp(clampedPosition.x, -roadWidth, roadWidth);
         transform.position = clampedPosition;
@@ -104,5 +91,26 @@ public class ThesisCarController : MonoBehaviour
     {
         transform.Translate(Vector3.forward * currentForwardSpeed * Time.deltaTime, Space.World);
         transform.position = new Vector3(transform.position.x, rideHeight, transform.position.z);
+    }
+
+    void AnimateWheels()
+    {
+        if (wheels == null || wheels.Length == 0) return;
+
+        // THE FIX: "Torque"
+        // We add the Input (key press) to the speed.
+        // If you press W (Input=1), we add 50 fake speed units to the spin.
+        // This makes wheels spin IMMEDIATELY when you press the key.
+        float verticalInput = Input.GetAxis("Vertical");
+        float torqueBoost = verticalInput * 50f; 
+
+        // Calculate total spin
+        float rotationAmount = (currentForwardSpeed + torqueBoost) * wheelSpinSpeed * Time.deltaTime;
+
+        foreach (Transform wheel in wheels)
+        {
+            if (wheel != null)
+                wheel.Rotate(Vector3.right, rotationAmount);
+        }
     }
 }

@@ -5,32 +5,41 @@ public class ThesisCameraFollow : MonoBehaviour
     public Transform target;
 
     [Header("Camera Settings")]
-    public Vector3 offset = new Vector3(0, 5, -8); // Slightly closer default
-    
-    // LOWER number = Stiffer, less drift (Fixes "Too far away")
-    // 0.05 is very snappy. 0.2 is loose.
+    public Vector3 defaultOffset = new Vector3(0, 5, -8); // The "Normal" view
     public float smoothTime = 0.05f; 
     
+    // Private variable that tracks where the camera WANTS to be right now
+    private Vector3 activeOffset;
     private Vector3 currentVelocity;
+
+    void Start()
+    {
+        activeOffset = defaultOffset;
+    }
 
     void LateUpdate()
     {
         if (target == null) return;
 
-        // 1. Calculate ideal spot
-        Vector3 targetPosition = target.position + offset;
+        // We use 'activeOffset' which might change if we enter a tunnel
+        Vector3 targetPosition = target.position + activeOffset;
 
-        // 2. Override Z (Forward/Back) to prevent "Rubber Banding"
-        // At high speeds, we snap the Z axis harder so the car doesn't run away.
-        Vector3 finalPosition = Vector3.SmoothDamp(transform.position, targetPosition, ref currentVelocity, smoothTime);
-        
-        // OPTIONAL: If the camera is still too jittery at 100mph, uncomment the line below.
-        // It forces the camera to lock EXACTLY to the car's forward speed, smoothing only the side-to-side.
-        // finalPosition.z = target.position.z + offset.z;
+        // Smoothly move there
+        // Note: We use a separate dampener for the Offset itself to transition smoothly
+        transform.position = Vector3.SmoothDamp(transform.position, targetPosition, ref currentVelocity, smoothTime);
 
-        transform.position = finalPosition;
-
-        // 3. Look at car (Optional - disable if it feels dizzy)
         transform.LookAt(target);
+    }
+
+    // FUNCTION: Call this to zoom in (Tunnel Mode)
+    public void SetZoneOffset(Vector3 newOffset)
+    {
+        activeOffset = newOffset;
+    }
+
+    // FUNCTION: Call this to reset (Normal Mode)
+    public void ResetOffset()
+    {
+        activeOffset = defaultOffset;
     }
 }

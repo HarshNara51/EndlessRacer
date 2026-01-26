@@ -353,6 +353,82 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 4319221708208499571, guid: f41fc8de3b857f04b8ab582ab168e44e, type: 3}
   m_PrefabInstance: {fileID: 1478401678}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &281554359
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 281554363}
+  - component: {fileID: 281554362}
+  - component: {fileID: 281554361}
+  - component: {fileID: 281554360}
+  m_Layer: 0
+  m_Name: TunnelZone
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &281554360
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 281554359}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b489d8023f198fe47b5c6f36577a46c4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CameraZone
+  zoneOffset: {x: 0, y: 3, z: -5}
+--- !u!65 &281554361
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 281554359}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 1
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 1, y: 1, z: 1}
+  m_Center: {x: 0, y: 0, z: 0}
+--- !u!33 &281554362
+MeshFilter:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 281554359}
+  m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!4 &281554363
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 281554359}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 200}
+  m_LocalScale: {x: 20, y: 10, z: 50}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &961739749
 GameObject:
   m_ObjectHideFlags: 0
@@ -504,7 +580,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ThesisCameraFollow
   target: {fileID: 1897467788}
-  offset: {x: 0, y: 3, z: -10}
+  defaultOffset: {x: 0, y: 5, z: -8}
   smoothTime: 0.05
 --- !u!1 &1410188229
 GameObject:
@@ -800,6 +876,16 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!4 &1658658394 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 5305866778273042379, guid: f41fc8de3b857f04b8ab582ab168e44e, type: 3}
+  m_PrefabInstance: {fileID: 1478401678}
+  m_PrefabAsset: {fileID: 0}
+--- !u!4 &1681456954 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 4752817142403579143, guid: f41fc8de3b857f04b8ab582ab168e44e, type: 3}
+  m_PrefabInstance: {fileID: 1478401678}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1 &1759469781
 GameObject:
   m_ObjectHideFlags: 0
@@ -876,8 +962,14 @@ MonoBehaviour:
   roadWidth: 5
   visualModel: {fileID: 213851834}
   rideHeight: 1
-  swayAmount: 20
-  turnSpeed: 15
+  swayAmount: 8
+  turnSpeed: 5
+  wheels:
+  - {fileID: 1658658394}
+  - {fileID: 2076768620}
+  - {fileID: 1681456954}
+  - {fileID: 1978502208}
+  wheelSpinSpeed: 10
   speedometerText: {fileID: 1410188231}
   currentForwardSpeed: 0
 --- !u!4 &1897467788 stripped
@@ -906,6 +998,16 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 5, y: 2, z: 8}
   m_Center: {x: 0, y: 0, z: 0}
+--- !u!4 &1978502208 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 1388521329562003314, guid: f41fc8de3b857f04b8ab582ab168e44e, type: 3}
+  m_PrefabInstance: {fileID: 1478401678}
+  m_PrefabAsset: {fileID: 0}
+--- !u!4 &2076768620 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 2125770545597052252, guid: f41fc8de3b857f04b8ab582ab168e44e, type: 3}
+  m_PrefabInstance: {fileID: 1478401678}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
@@ -916,3 +1018,4 @@ SceneRoots:
   - {fileID: 1759469783}
   - {fileID: 53308900}
   - {fileID: 1629164958}
+  - {fileID: 281554363}
