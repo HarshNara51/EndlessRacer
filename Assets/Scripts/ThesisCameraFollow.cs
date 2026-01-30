@@ -5,10 +5,13 @@ public class ThesisCameraFollow : MonoBehaviour
     public Transform target;
 
     [Header("Camera Settings")]
-    public Vector3 defaultOffset = new Vector3(0, 5, -8); // The "Normal" view
-    public float smoothTime = 0.05f; 
+    public Vector3 defaultOffset = new Vector3(0, 5, -8); 
     
-    // Private variable that tracks where the camera WANTS to be right now
+    [Header("Game Feel Tuning")]
+    public float followSpeed = 0.2f;    // The "Laziness"
+    public float rotationSpeed = 5.0f;  
+    public float maxDistance = 15f;     // NEW: The "Leash" length
+
     private Vector3 activeOffset;
     private Vector3 currentVelocity;
 
@@ -21,23 +24,40 @@ public class ThesisCameraFollow : MonoBehaviour
     {
         if (target == null) return;
 
-        // We use 'activeOffset' which might change if we enter a tunnel
-        Vector3 targetPosition = target.position + activeOffset;
+        // 1. POSITION (Drift)
+        Vector3 desiredPosition = target.TransformPoint(activeOffset);
+        
+        // Move nicely...
+        Vector3 nextPosition = Vector3.SmoothDamp(transform.position, desiredPosition, ref currentVelocity, followSpeed);
 
-        // Smoothly move there
-        // Note: We use a separate dampener for the Offset itself to transition smoothly
-        transform.position = Vector3.SmoothDamp(transform.position, targetPosition, ref currentVelocity, smoothTime);
+        // ...BUT check the leash!
+        // If the calculated next spot is too far from the car, pull it closer.
+        float distanceToCar = Vector3.Distance(nextPosition, target.position);
+        
+        if (distanceToCar > maxDistance)
+        {
+            // Calculate the direction from car to camera
+            Vector3 directionFromCar = (nextPosition - target.position).normalized;
+            // Force the position to be exactly at the max distance
+            nextPosition = target.position + (directionFromCar * maxDistance);
+        }
 
-        transform.LookAt(target);
+        transform.position = nextPosition;
+
+        // 2. ROTATION (Look)
+        Vector3 directionToCarVec = target.position - transform.position;
+        if (directionToCarVec != Vector3.zero)
+        {
+            Quaternion targetRotation = Quaternion.LookRotation(directionToCarVec);
+            transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, rotationSpeed * Time.deltaTime);
+        }
     }
 
-    // FUNCTION: Call this to zoom in (Tunnel Mode)
     public void SetZoneOffset(Vector3 newOffset)
     {
         activeOffset = newOffset;
     }
 
-    // FUNCTION: Call this to reset (Normal Mode)
     public void ResetOffset()
     {
         activeOffset = defaultOffset;
