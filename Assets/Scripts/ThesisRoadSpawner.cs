@@ -4,70 +4,124 @@ using UnityEngine;
 public class ThesisRoadSpawner : MonoBehaviour
 {
     [Header("Settings")]
-    public GameObject[] roadPrefabs;
+    public GameObject[] roadPrefabs; 
     public Transform playerCar;
 
-    [Header("Fine Tuning")]
-    public float tileLength = 30f;   // Set this to your prefab's Z length
-    public int tilesOnScreen = 10;   // How many tiles to generate ahead
-    public float spawnZ = 0f;
-    
-    [Header("Cleanup Settings")]
-    public float safeZone = 100f;    // Distance to keep road BEHIND the player
+    [Header("Generation Settings")]
+    public int initialTiles = 10;
+    public float spawnDistance = 200f;
+    public float destroyDistance = 200f;
 
-    // We use a List so we can easily add to the front and remove from the back
+    // State Variables
     private List<GameObject> activeTiles = new List<GameObject>();
+    private Transform previousExitPoint; 
 
     void Start()
     {
-        // 1. Backfill: Spawn a few tiles BEHIND the player first so you don't start on an edge
-        // This ensures the player starts in the middle of a road, not at the cliff edge.
-        spawnZ = playerCar.position.z - (tileLength * 3); 
+        // 1. Spawn the first tile manually at (0,0,0)
+        SpawnTile(0, true); 
 
-        // 2. Spawn the initial batch
-        for (int i = 0; i < tilesOnScreen; i++)
+        // 2. Spawn the rest
+        for (int i = 0; i < initialTiles; i++)
         {
-            SpawnTile();
+            SpawnRandomTile();
         }
     }
 
     void Update()
     {
-        // LOGIC 1: SPAWN AHEAD
-        // If the end of the road is getting too close to the player...
-        // (We want to maintain 'tilesOnScreen' amount of road ahead)
-        if (spawnZ - playerCar.position.z < (tilesOnScreen * tileLength))
+        if (playerCar == null || activeTiles.Count == 0 || previousExitPoint == null) return;
+
+        // Check distance to generate more
+        float distanceToEnd = Vector3.Distance(playerCar.position, previousExitPoint.position);
+        if (distanceToEnd < spawnDistance)
         {
-            SpawnTile();
+            SpawnRandomTile();
         }
 
-        // LOGIC 2: DELETE BEHIND
-        // Only delete the tile if it is WAY behind the player
-        if (activeTiles.Count > 0)
+        // Cleanup old tiles
+        GameObject oldestTile = activeTiles[0];
+        if (Vector3.Distance(playerCar.position, oldestTile.transform.position) > destroyDistance)
         {
-            // Calculate distance from player to the oldest tile
-            float distanceToOldest = playerCar.position.z - activeTiles[0].transform.position.z;
+            activeTiles.RemoveAt(0);
+            Destroy(oldestTile);
+        }
+    }
 
-            // If the oldest tile is further back than our safeZone...
-            if (distanceToOldest > safeZone)
+    void SpawnRandomTile()
+    {
+        int randomIndex = Random.Range(0, roadPrefabs.Length);
+        SpawnTile(randomIndex);
+    }
+
+    void SpawnTile(int prefabIndex, bool isFirstTile = false)
+    {
+        GameObject tilePrefab = roadPrefabs[prefabIndex];
+        GameObject newTile;
+
+        if (isFirstTile)
+        {
+            // First tile: Spawn at world zero
+            newTile = Instantiate(tilePrefab, Vector3.zero, Quaternion.identity);
+        }
+        else
+        {
+            // --- NEW ALIGNMENT LOGIC ---
+            
+            // 1. Create the object (position/rotation doesn't matter yet)
+            newTile = Instantiate(tilePrefab); 
+
+            // 2. Find the Entry Point
+            Transform myEntry = GetChildRecursive(newTile.transform, "EntryPoint");
+
+            if (myEntry != null)
             {
-                DeleteOldTile();
+                // STEP A: MATCH ROTATION
+                // We want: myEntry.rotation == previousExitPoint.rotation
+                // So we rotate the root object by the difference
+                Quaternion rotationDifference = Quaternion.Inverse(myEntry.localRotation);
+                newTile.transform.rotation = previousExitPoint.rotation * rotationDifference;
+
+                // STEP B: MATCH POSITION
+                // Now that rotation is correct, we calculate the offset to snap positions
+                // We move the root so that myEntry.position lands exactly on previousExitPoint.position
+                Vector3 offset = myEntry.position - newTile.transform.position;
+                newTile.transform.position = previousExitPoint.position - offset;
+            }
+            else
+            {
+                Debug.LogWarning("Tile " + newTile.name + " is missing 'EntryPoint'. Alignment will fail.");
+                // Fallback: Just snap to position if entry is missing
+                newTile.transform.position = previousExitPoint.position;
+                newTile.transform.rotation = previousExitPoint.rotation;
             }
         }
+
+        newTile.transform.SetParent(transform);
+        activeTiles.Add(newTile);
+
+        // --- PREPARE FOR NEXT TILE ---
+        Transform myExit = GetChildRecursive(newTile.transform, "ExitPoint");
+
+        if (myExit != null)
+        {
+            previousExitPoint = myExit;
+        }
+        else
+        {
+            Debug.LogError("Tile " + newTile.name + " is missing 'ExitPoint'! Spawning stopped.");
+            Debug.Break();
+        }
     }
 
-    void SpawnTile()
+    Transform GetChildRecursive(Transform parent, string name)
     {
-        GameObject go = Instantiate(roadPrefabs[0]);
-        go.transform.SetParent(transform);
-        go.transform.position = Vector3.forward * spawnZ;
-        activeTiles.Add(go);
-        spawnZ += tileLength;
-    }
-
-    void DeleteOldTile()
-    {
-        Destroy(activeTiles[0]);
-        activeTiles.RemoveAt(0);
+        foreach (Transform child in parent)
+        {
+            if (child.name == name) return child;
+            Transform result = GetChildRecursive(child, name);
+            if (result != null) return result;
+        }
+        return null;
     }
 }
