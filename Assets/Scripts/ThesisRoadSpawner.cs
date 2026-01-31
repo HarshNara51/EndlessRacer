@@ -8,13 +8,13 @@ public class ThesisRoadSpawner : MonoBehaviour
     public Transform playerCar;
 
     [Header("Generation Settings")]
-    public int initialTiles = 5;       // Start with a small buffer
-    public float spawnDistance = 150f; // Lowered to prevent massive knots
+    public int initialTiles = 5;       
+    public float spawnDistance = 150f; 
     public float destroyDistance = 150f;
     
     [Header("Overlap Protection")]
-    public LayerMask roadLayer;        // Assign "Default" or a new "Road" layer
-    public float overlapRadius = 5f;   // Size of the safety bubble check
+    public LayerMask roadLayer;        
+    public float overlapRadius = 5f;   
 
     // State Variables
     private List<GameObject> activeTiles = new List<GameObject>();
@@ -22,10 +22,7 @@ public class ThesisRoadSpawner : MonoBehaviour
 
     void Start()
     {
-        // 1. Spawn the first tile manually at (0,0,0)
-        SpawnTile(0, true); 
-
-        // 2. Spawn the rest
+        SpawnTile(0, true); // First tile manual
         for (int i = 0; i < initialTiles; i++)
         {
             SpawnRandomTileWithSafety();
@@ -36,14 +33,12 @@ public class ThesisRoadSpawner : MonoBehaviour
     {
         if (playerCar == null || activeTiles.Count == 0 || previousExitPoint == null) return;
 
-        // Check distance to generate more
         float distanceToEnd = Vector3.Distance(playerCar.position, previousExitPoint.position);
         if (distanceToEnd < spawnDistance)
         {
             SpawnRandomTileWithSafety();
         }
 
-        // Cleanup old tiles
         GameObject oldestTile = activeTiles[0];
         if (Vector3.Distance(playerCar.position, oldestTile.transform.position) > destroyDistance)
         {
@@ -52,38 +47,28 @@ public class ThesisRoadSpawner : MonoBehaviour
         }
     }
 
-    // Tries to spawn a valid tile. If it overlaps, it retries.
     void SpawnRandomTileWithSafety()
     {
         bool validPositionFound = false;
         int attempts = 0;
-        int maxAttempts = 5; // Don't freeze the game trying forever
+        int maxAttempts = 5; 
 
         while (!validPositionFound && attempts < maxAttempts)
         {
             int randomIndex = Random.Range(0, roadPrefabs.Length);
             
-            // PRE-CALCULATE: Where would this tile go?
-            // We need to simulate the position without actually spawning perfectly yet.
-            // This is complex, so for a Thesis level, we use a simpler approach:
-            // "Spawn, Check, Delete if Bad".
-            
+            // 1. Create Temp Tile
             GameObject tempTile = Instantiate(roadPrefabs[randomIndex]);
-            AlignTile(tempTile); // Put it in place
+            AlignTile(tempTile); 
 
-            // CHECK FOR OVERLAP
-            // We check a box around the new tile's position
-            // Note: This requires your roads to have Colliders!
+            // 2. Check Overlap
             Collider[] hits = Physics.OverlapBox(tempTile.transform.position, Vector3.one * overlapRadius, tempTile.transform.rotation, roadLayer);
             
-            // "hits" will always hit the tile itself (tempTile), so we check if hits > 1
-            // OR we ignore the tempTile specifically.
             bool hitOtherRoad = false;
             foreach(var hit in hits)
             {
                 if (hit.transform.root != tempTile.transform && hit.transform.root != previousExitPoint.root)
                 {
-                    // We hit a road that ISN'T ourself and ISN'T the one we just connected to
                     hitOtherRoad = true;
                     break;
                 }
@@ -91,26 +76,21 @@ public class ThesisRoadSpawner : MonoBehaviour
 
             if (hitOtherRoad)
             {
-                // Bad spot! Destroy and try again.
                 Destroy(tempTile);
                 attempts++;
             }
             else
             {
-                // Good spot! Keep it.
+                // Success!
                 tempTile.transform.SetParent(transform);
                 activeTiles.Add(tempTile);
-                
-                // Update the exit point
                 Transform myExit = GetChildRecursive(tempTile.transform, "ExitPoint");
                 if (myExit != null) previousExitPoint = myExit;
-                
                 validPositionFound = true;
             }
         }
 
-        // FAILSAFE: If we failed 5 times, force a straight road (Prefab 0)
-        // assuming Prefab[0] is your straight road.
+        // Failsafe: If all random tries failed, force a Straight Road (Index 0)
         if (!validPositionFound)
         {
             GameObject safeTile = Instantiate(roadPrefabs[0]);
@@ -122,7 +102,6 @@ public class ThesisRoadSpawner : MonoBehaviour
         }
     }
 
-    // Refactored Alignment Logic (Reuse code)
     void AlignTile(GameObject tile)
     {
         Transform myEntry = GetChildRecursive(tile.transform, "EntryPoint");
@@ -137,7 +116,6 @@ public class ThesisRoadSpawner : MonoBehaviour
         }
     }
 
-    // Helper for manual first spawn
     void SpawnTile(int index, bool isFirst = false)
     {
         GameObject t = Instantiate(roadPrefabs[index]);
