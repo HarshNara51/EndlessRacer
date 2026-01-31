@@ -393,7 +393,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f3b5baa15bd05fa4c9c10e3dad41d729, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ThesisCarController
-  maxSpeed: 80
+  maxSpeed: 40
   acceleration: 30
   friction: 10
   brakePower: 50
