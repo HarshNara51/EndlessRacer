@@ -8,9 +8,13 @@ public class ThesisRoadSpawner : MonoBehaviour
     public Transform playerCar;
 
     [Header("Generation Settings")]
-    public int initialTiles = 10;
-    public float spawnDistance = 200f;
-    public float destroyDistance = 200f;
+    public int initialTiles = 5;       // Start with a small buffer
+    public float spawnDistance = 150f; // Lowered to prevent massive knots
+    public float destroyDistance = 150f;
+    
+    [Header("Overlap Protection")]
+    public LayerMask roadLayer;        // Assign "Default" or a new "Road" layer
+    public float overlapRadius = 5f;   // Size of the safety bubble check
 
     // State Variables
     private List<GameObject> activeTiles = new List<GameObject>();
@@ -24,7 +28,7 @@ public class ThesisRoadSpawner : MonoBehaviour
         // 2. Spawn the rest
         for (int i = 0; i < initialTiles; i++)
         {
-            SpawnRandomTile();
+            SpawnRandomTileWithSafety();
         }
     }
 
@@ -36,7 +40,7 @@ public class ThesisRoadSpawner : MonoBehaviour
         float distanceToEnd = Vector3.Distance(playerCar.position, previousExitPoint.position);
         if (distanceToEnd < spawnDistance)
         {
-            SpawnRandomTile();
+            SpawnRandomTileWithSafety();
         }
 
         // Cleanup old tiles
@@ -48,70 +52,109 @@ public class ThesisRoadSpawner : MonoBehaviour
         }
     }
 
-    void SpawnRandomTile()
+    // Tries to spawn a valid tile. If it overlaps, it retries.
+    void SpawnRandomTileWithSafety()
     {
-        int randomIndex = Random.Range(0, roadPrefabs.Length);
-        SpawnTile(randomIndex);
-    }
+        bool validPositionFound = false;
+        int attempts = 0;
+        int maxAttempts = 5; // Don't freeze the game trying forever
 
-    void SpawnTile(int prefabIndex, bool isFirstTile = false)
-    {
-        GameObject tilePrefab = roadPrefabs[prefabIndex];
-        GameObject newTile;
-
-        if (isFirstTile)
+        while (!validPositionFound && attempts < maxAttempts)
         {
-            // First tile: Spawn at world zero
-            newTile = Instantiate(tilePrefab, Vector3.zero, Quaternion.identity);
-        }
-        else
-        {
-            // --- NEW ALIGNMENT LOGIC ---
+            int randomIndex = Random.Range(0, roadPrefabs.Length);
             
-            // 1. Create the object (position/rotation doesn't matter yet)
-            newTile = Instantiate(tilePrefab); 
+            // PRE-CALCULATE: Where would this tile go?
+            // We need to simulate the position without actually spawning perfectly yet.
+            // This is complex, so for a Thesis level, we use a simpler approach:
+            // "Spawn, Check, Delete if Bad".
+            
+            GameObject tempTile = Instantiate(roadPrefabs[randomIndex]);
+            AlignTile(tempTile); // Put it in place
 
-            // 2. Find the Entry Point
-            Transform myEntry = GetChildRecursive(newTile.transform, "EntryPoint");
-
-            if (myEntry != null)
+            // CHECK FOR OVERLAP
+            // We check a box around the new tile's position
+            // Note: This requires your roads to have Colliders!
+            Collider[] hits = Physics.OverlapBox(tempTile.transform.position, Vector3.one * overlapRadius, tempTile.transform.rotation, roadLayer);
+            
+            // "hits" will always hit the tile itself (tempTile), so we check if hits > 1
+            // OR we ignore the tempTile specifically.
+            bool hitOtherRoad = false;
+            foreach(var hit in hits)
             {
-                // STEP A: MATCH ROTATION
-                // We want: myEntry.rotation == previousExitPoint.rotation
-                // So we rotate the root object by the difference
-                Quaternion rotationDifference = Quaternion.Inverse(myEntry.localRotation);
-                newTile.transform.rotation = previousExitPoint.rotation * rotationDifference;
+                if (hit.transform.root != tempTile.transform && hit.transform.root != previousExitPoint.root)
+                {
+                    // We hit a road that ISN'T ourself and ISN'T the one we just connected to
+                    hitOtherRoad = true;
+                    break;
+                }
+            }
 
-                // STEP B: MATCH POSITION
-                // Now that rotation is correct, we calculate the offset to snap positions
-                // We move the root so that myEntry.position lands exactly on previousExitPoint.position
-                Vector3 offset = myEntry.position - newTile.transform.position;
-                newTile.transform.position = previousExitPoint.position - offset;
+            if (hitOtherRoad)
+            {
+                // Bad spot! Destroy and try again.
+                Destroy(tempTile);
+                attempts++;
             }
             else
             {
-                Debug.LogWarning("Tile " + newTile.name + " is missing 'EntryPoint'. Alignment will fail.");
-                // Fallback: Just snap to position if entry is missing
-                newTile.transform.position = previousExitPoint.position;
-                newTile.transform.rotation = previousExitPoint.rotation;
+                // Good spot! Keep it.
+                tempTile.transform.SetParent(transform);
+                activeTiles.Add(tempTile);
+                
+                // Update the exit point
+                Transform myExit = GetChildRecursive(tempTile.transform, "ExitPoint");
+                if (myExit != null) previousExitPoint = myExit;
+                
+                validPositionFound = true;
             }
         }
 
-        newTile.transform.SetParent(transform);
-        activeTiles.Add(newTile);
-
-        // --- PREPARE FOR NEXT TILE ---
-        Transform myExit = GetChildRecursive(newTile.transform, "ExitPoint");
-
-        if (myExit != null)
+        // FAILSAFE: If we failed 5 times, force a straight road (Prefab 0)
+        // assuming Prefab[0] is your straight road.
+        if (!validPositionFound)
         {
-            previousExitPoint = myExit;
+            GameObject safeTile = Instantiate(roadPrefabs[0]);
+            AlignTile(safeTile);
+            safeTile.transform.SetParent(transform);
+            activeTiles.Add(safeTile);
+            Transform myExit = GetChildRecursive(safeTile.transform, "ExitPoint");
+            if (myExit != null) previousExitPoint = myExit;
         }
-        else
+    }
+
+    // Refactored Alignment Logic (Reuse code)
+    void AlignTile(GameObject tile)
+    {
+        Transform myEntry = GetChildRecursive(tile.transform, "EntryPoint");
+
+        if (myEntry != null)
         {
-            Debug.LogError("Tile " + newTile.name + " is missing 'ExitPoint'! Spawning stopped.");
-            Debug.Break();
+            Quaternion rotationDifference = Quaternion.Inverse(myEntry.localRotation);
+            tile.transform.rotation = previousExitPoint.rotation * rotationDifference;
+
+            Vector3 offset = myEntry.position - tile.transform.position;
+            tile.transform.position = previousExitPoint.position - offset;
         }
+    }
+
+    // Helper for manual first spawn
+    void SpawnTile(int index, bool isFirst = false)
+    {
+        GameObject t = Instantiate(roadPrefabs[index]);
+        if(isFirst) 
+        {
+            t.transform.position = Vector3.zero;
+            t.transform.rotation = Quaternion.identity;
+        }
+        else 
+        { 
+            AlignTile(t); 
+        }
+        
+        t.transform.SetParent(transform);
+        activeTiles.Add(t);
+        Transform exit = GetChildRecursive(t.transform, "ExitPoint");
+        if (exit != null) previousExitPoint = exit;
     }
 
     Transform GetChildRecursive(Transform parent, string name)
