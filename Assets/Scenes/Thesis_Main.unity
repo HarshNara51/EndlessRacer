@@ -1006,7 +1006,7 @@ MonoBehaviour:
   - {fileID: 1688716250183764395, guid: 1bd316f883501464697ab9690228d98e, type: 3}
   - {fileID: 2611502644018053759, guid: 0c65e110751672940932e679191186fa, type: 3}
   playerCar: {fileID: 1897467788}
-  initialTiles: 6
+  initialTiles: 3
   spawnDistance: 200
   destroyDistance: 200
   roadLayer:
