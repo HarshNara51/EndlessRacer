@@ -3,145 +3,185 @@ using UnityEngine;
 
 public class ThesisRoadSpawner : MonoBehaviour
 {
-    [Header("Settings")]
-    public GameObject[] roadPrefabs; 
+    [Header("Road Prefabs")]
+    public GameObject[] roadPrefabs; // 0 = Straight
     public Transform playerCar;
 
     [Header("Generation Settings")]
-    public int initialTiles = 5;       
-    public float spawnDistance = 150f; 
-    public float destroyDistance = 150f;
-    
-    [Header("Overlap Protection")]
-    public LayerMask roadLayer;        
-    public float overlapRadius = 5f;   
+    public int initialTiles = 5;
+    public float spawnDistance = 150f;
+    public float destroyDistance = 50f;
 
-    // State Variables
+    [Header("Debug")]
+    public bool enableDebugLogs = true;
+    public float statsInterval = 30f;
+
+    // State
     private List<GameObject> activeTiles = new List<GameObject>();
-    private Transform previousExitPoint; 
+    private Transform previousExitPoint;
+
+    // Shuffle bag (fair randomness)
+    private List<int> shuffleBag = new List<int>();
+
+    // Stats
+    private Dictionary<int, int> spawnCounts = new Dictionary<int, int>();
+    private float statsTimer;
 
     void Start()
     {
-        SpawnTile(0, true); // First tile manual
+        InitializeStats();
+        RefillShuffleBag();
+
+        SpawnTile(0, true); // first straight
         for (int i = 0; i < initialTiles; i++)
-        {
-            SpawnRandomTileWithSafety();
-        }
+            SpawnNextTile();
     }
 
     void Update()
     {
-        if (playerCar == null || activeTiles.Count == 0 || previousExitPoint == null) return;
+        if (playerCar == null || previousExitPoint == null)
+            return;
 
-        float distanceToEnd = Vector3.Distance(playerCar.position, previousExitPoint.position);
-        if (distanceToEnd < spawnDistance)
-        {
-            SpawnRandomTileWithSafety();
-        }
+        if (Vector3.Distance(playerCar.position, previousExitPoint.position) < spawnDistance)
+            SpawnNextTile();
 
-        GameObject oldestTile = activeTiles[0];
-        if (Vector3.Distance(playerCar.position, oldestTile.transform.position) > destroyDistance)
+        DestroyOldTiles();
+        UpdateStatsTimer();
+    }
+
+    // ---------------- SPAWN ----------------
+
+    void SpawnNextTile()
+    {
+        if (shuffleBag.Count == 0)
+            RefillShuffleBag();
+
+        int index = shuffleBag[0];
+        shuffleBag.RemoveAt(0);
+
+        GameObject tile = Instantiate(roadPrefabs[index]);
+        AlignTileUsingEntryExit(tile);
+        Physics.SyncTransforms();
+
+        FinalizeTile(tile, index);
+    }
+
+    void FinalizeTile(GameObject tile, int index)
+    {
+        tile.transform.SetParent(transform);
+        activeTiles.Add(tile);
+
+        previousExitPoint = GetChildRecursive(tile.transform, "ExitPoint");
+        spawnCounts[index]++;
+
+        if (enableDebugLogs)
+            Debug.Log($"[SPAWNED] {roadPrefabs[index].name} | Count: {spawnCounts[index]}");
+    }
+
+    // ---------------- ALIGNMENT ----------------
+
+    void AlignTileUsingEntryExit(GameObject tile)
+    {
+        Transform entry = GetChildRecursive(tile.transform, "EntryPoint");
+        if (entry == null || previousExitPoint == null) return;
+
+        Quaternion rotDiff = Quaternion.Inverse(entry.localRotation);
+        tile.transform.rotation = previousExitPoint.rotation * rotDiff;
+
+        Vector3 offset = entry.position - tile.transform.position;
+        tile.transform.position = previousExitPoint.position - offset;
+    }
+
+    // ---------------- DESTROY ----------------
+
+    void DestroyOldTiles()
+    {
+        if (activeTiles.Count == 0) return;
+
+        GameObject oldest = activeTiles[0];
+        Transform exit = GetChildRecursive(oldest.transform, "ExitPoint");
+
+        if (exit != null && playerCar.position.z > exit.position.z + destroyDistance)
         {
             activeTiles.RemoveAt(0);
-            Destroy(oldestTile);
+            Destroy(oldest);
         }
     }
 
-    void SpawnRandomTileWithSafety()
+    // ---------------- SHUFFLE BAG ----------------
+
+    void RefillShuffleBag()
     {
-        bool validPositionFound = false;
-        int attempts = 0;
-        int maxAttempts = 5; 
+        shuffleBag.Clear();
+        for (int i = 0; i < roadPrefabs.Length; i++)
+            shuffleBag.Add(i);
 
-        while (!validPositionFound && attempts < maxAttempts)
+        Shuffle(shuffleBag);
+
+        if (enableDebugLogs)
+            Debug.Log("[BAG] Refilled & shuffled");
+    }
+
+    void Shuffle(List<int> list)
+    {
+        for (int i = 0; i < list.Count; i++)
         {
-            int randomIndex = Random.Range(0, roadPrefabs.Length);
-            
-            // 1. Create Temp Tile
-            GameObject tempTile = Instantiate(roadPrefabs[randomIndex]);
-            AlignTile(tempTile); 
-
-            // 2. Check Overlap
-            Collider[] hits = Physics.OverlapBox(tempTile.transform.position, Vector3.one * overlapRadius, tempTile.transform.rotation, roadLayer);
-            
-            bool hitOtherRoad = false;
-            foreach(var hit in hits)
-            {
-                if (hit.transform.root != tempTile.transform && hit.transform.root != previousExitPoint.root)
-                {
-                    hitOtherRoad = true;
-                    break;
-                }
-            }
-
-            if (hitOtherRoad)
-            {
-                Destroy(tempTile);
-                attempts++;
-            }
-            else
-            {
-                // Success!
-                tempTile.transform.SetParent(transform);
-                activeTiles.Add(tempTile);
-                Transform myExit = GetChildRecursive(tempTile.transform, "ExitPoint");
-                if (myExit != null) previousExitPoint = myExit;
-                validPositionFound = true;
-            }
-        }
-
-        // Failsafe: If all random tries failed, force a Straight Road (Index 0)
-        if (!validPositionFound)
-        {
-            GameObject safeTile = Instantiate(roadPrefabs[0]);
-            AlignTile(safeTile);
-            safeTile.transform.SetParent(transform);
-            activeTiles.Add(safeTile);
-            Transform myExit = GetChildRecursive(safeTile.transform, "ExitPoint");
-            if (myExit != null) previousExitPoint = myExit;
+            int rnd = Random.Range(i, list.Count);
+            (list[i], list[rnd]) = (list[rnd], list[i]);
         }
     }
 
-    void AlignTile(GameObject tile)
+    // ---------------- STATS ----------------
+
+    void InitializeStats()
     {
-        Transform myEntry = GetChildRecursive(tile.transform, "EntryPoint");
+        for (int i = 0; i < roadPrefabs.Length; i++)
+            spawnCounts[i] = 0;
+    }
 
-        if (myEntry != null)
+    void UpdateStatsTimer()
+    {
+        statsTimer += Time.deltaTime;
+        if (statsTimer >= statsInterval)
         {
-            Quaternion rotationDifference = Quaternion.Inverse(myEntry.localRotation);
-            tile.transform.rotation = previousExitPoint.rotation * rotationDifference;
-
-            Vector3 offset = myEntry.position - tile.transform.position;
-            tile.transform.position = previousExitPoint.position - offset;
+            statsTimer = 0f;
+            PrintStats();
         }
     }
 
-    void SpawnTile(int index, bool isFirst = false)
+    void PrintStats()
     {
-        GameObject t = Instantiate(roadPrefabs[index]);
-        if(isFirst) 
+        Debug.Log("===== ROAD SPAWN STATS =====");
+        for (int i = 0; i < roadPrefabs.Length; i++)
+            Debug.Log($"{roadPrefabs[i].name} → {spawnCounts[i]}");
+    }
+
+    // ---------------- UTIL ----------------
+
+    void SpawnTile(int index, bool isFirst)
+    {
+        GameObject tile = Instantiate(roadPrefabs[index]);
+
+        if (isFirst)
         {
-            t.transform.position = Vector3.zero;
-            t.transform.rotation = Quaternion.identity;
+            tile.transform.position = Vector3.zero;
+            tile.transform.rotation = Quaternion.identity;
         }
-        else 
-        { 
-            AlignTile(t); 
-        }
-        
-        t.transform.SetParent(transform);
-        activeTiles.Add(t);
-        Transform exit = GetChildRecursive(t.transform, "ExitPoint");
-        if (exit != null) previousExitPoint = exit;
+
+        Physics.SyncTransforms();
+        FinalizeTile(tile, index);
     }
 
     Transform GetChildRecursive(Transform parent, string name)
     {
         foreach (Transform child in parent)
         {
-            if (child.name == name) return child;
-            Transform result = GetChildRecursive(child, name);
-            if (result != null) return result;
+            if (child.name == name)
+                return child;
+
+            Transform found = GetChildRecursive(child, name);
+            if (found != null)
+                return found;
         }
         return null;
     }
