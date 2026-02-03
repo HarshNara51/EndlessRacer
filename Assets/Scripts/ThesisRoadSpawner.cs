@@ -4,32 +4,30 @@ using UnityEngine;
 public class ThesisRoadSpawner : MonoBehaviour
 {
     [Header("Road Prefabs")]
-    public GameObject[] roadPrefabs; // 0 = Straight
+    public GameObject[] roadPrefabs;   // 0 = Straight
     public Transform playerCar;
+
+    [Header("Environment")]
+    public GameObject envChunkPrefab;
+    public Transform environmentManager;
 
     [Header("Generation Settings")]
     public int initialTiles = 5;
     public float spawnDistance = 150f;
-    public float destroyDistance = 50f;
+    public float destroyDistance = 120f;
 
     [Header("Debug")]
     public bool enableDebugLogs = true;
-    public float statsInterval = 30f;
 
-    // State
+    // Runtime
     private List<GameObject> activeTiles = new List<GameObject>();
     private Transform previousExitPoint;
 
-    // Shuffle bag (fair randomness)
+    // Fair randomness
     private List<int> shuffleBag = new List<int>();
-
-    // Stats
-    private Dictionary<int, int> spawnCounts = new Dictionary<int, int>();
-    private float statsTimer;
 
     void Start()
     {
-        InitializeStats();
         RefillShuffleBag();
 
         SpawnTile(0, true); // first straight
@@ -46,10 +44,9 @@ public class ThesisRoadSpawner : MonoBehaviour
             SpawnNextTile();
 
         DestroyOldTiles();
-        UpdateStatsTimer();
     }
 
-    // ---------------- SPAWN ----------------
+    // ===================== SPAWN =====================
 
     void SpawnNextTile()
     {
@@ -63,52 +60,77 @@ public class ThesisRoadSpawner : MonoBehaviour
         AlignTileUsingEntryExit(tile);
         Physics.SyncTransforms();
 
-        FinalizeTile(tile, index);
+        FinalizeTile(tile);
     }
 
-    void FinalizeTile(GameObject tile, int index)
+    void FinalizeTile(GameObject tile)
     {
         tile.transform.SetParent(transform);
         activeTiles.Add(tile);
 
         previousExitPoint = GetChildRecursive(tile.transform, "ExitPoint");
-        spawnCounts[index]++;
+
+        // -------- ENV CHUNK --------
+        GameObject env = Instantiate(envChunkPrefab);
+        env.transform.SetParent(environmentManager);
+
+        // Match road transform (SAFE)
+        env.transform.position = tile.transform.position;
+        env.transform.rotation = tile.transform.rotation;
+        env.transform.localScale = Vector3.one;
+
+        RoadEnvLink link = tile.AddComponent<RoadEnvLink>();
+        link.envChunk = env;
+        // ---------------------------
 
         if (enableDebugLogs)
-            Debug.Log($"[SPAWNED] {roadPrefabs[index].name} | Count: {spawnCounts[index]}");
+            Debug.Log("[SPAWNED] Road + EnvChunk");
     }
 
-    // ---------------- ALIGNMENT ----------------
+    // ===================== ALIGNMENT =====================
 
     void AlignTileUsingEntryExit(GameObject tile)
     {
         Transform entry = GetChildRecursive(tile.transform, "EntryPoint");
-        if (entry == null || previousExitPoint == null) return;
+        if (entry == null || previousExitPoint == null)
+            return;
 
-        Quaternion rotDiff = Quaternion.Inverse(entry.localRotation);
-        tile.transform.rotation = previousExitPoint.rotation * rotDiff;
+        Quaternion rotationDiff = Quaternion.Inverse(entry.localRotation);
+        tile.transform.rotation = previousExitPoint.rotation * rotationDiff;
 
         Vector3 offset = entry.position - tile.transform.position;
         tile.transform.position = previousExitPoint.position - offset;
     }
 
-    // ---------------- DESTROY ----------------
+    // ===================== DESTROY =====================
 
     void DestroyOldTiles()
     {
-        if (activeTiles.Count == 0) return;
+        if (activeTiles.Count == 0)
+            return;
 
         GameObject oldest = activeTiles[0];
         Transform exit = GetChildRecursive(oldest.transform, "ExitPoint");
+        if (exit == null)
+            return;
 
-        if (exit != null && playerCar.position.z > exit.position.z + destroyDistance)
+        float dist = Vector3.Distance(playerCar.position, exit.position);
+
+        if (dist > destroyDistance)
         {
+            RoadEnvLink link = oldest.GetComponent<RoadEnvLink>();
+            if (link != null && link.envChunk != null)
+                Destroy(link.envChunk);
+
             activeTiles.RemoveAt(0);
             Destroy(oldest);
+
+            if (enableDebugLogs)
+                Debug.Log("[DESTROYED] Road + EnvChunk");
         }
     }
 
-    // ---------------- SHUFFLE BAG ----------------
+    // ===================== SHUFFLE BAG =====================
 
     void RefillShuffleBag()
     {
@@ -117,9 +139,6 @@ public class ThesisRoadSpawner : MonoBehaviour
             shuffleBag.Add(i);
 
         Shuffle(shuffleBag);
-
-        if (enableDebugLogs)
-            Debug.Log("[BAG] Refilled & shuffled");
     }
 
     void Shuffle(List<int> list)
@@ -131,32 +150,7 @@ public class ThesisRoadSpawner : MonoBehaviour
         }
     }
 
-    // ---------------- STATS ----------------
-
-    void InitializeStats()
-    {
-        for (int i = 0; i < roadPrefabs.Length; i++)
-            spawnCounts[i] = 0;
-    }
-
-    void UpdateStatsTimer()
-    {
-        statsTimer += Time.deltaTime;
-        if (statsTimer >= statsInterval)
-        {
-            statsTimer = 0f;
-            PrintStats();
-        }
-    }
-
-    void PrintStats()
-    {
-        Debug.Log("===== ROAD SPAWN STATS =====");
-        for (int i = 0; i < roadPrefabs.Length; i++)
-            Debug.Log($"{roadPrefabs[i].name} → {spawnCounts[i]}");
-    }
-
-    // ---------------- UTIL ----------------
+    // ===================== UTIL =====================
 
     void SpawnTile(int index, bool isFirst)
     {
@@ -169,7 +163,7 @@ public class ThesisRoadSpawner : MonoBehaviour
         }
 
         Physics.SyncTransforms();
-        FinalizeTile(tile, index);
+        FinalizeTile(tile);
     }
 
     Transform GetChildRecursive(Transform parent, string name)

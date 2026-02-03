@@ -3,17 +3,21 @@ using UnityEngine;
 public class EnvironmentSpawner : MonoBehaviour
 {
     [Header("Tree Settings")]
-    public GameObject[] treePrefabs;  // Assign your tree prefabs here
-    public int maxTrees = 10;          // Max trees per spawn
-    public float minScale = 0.5f;      // Min tree scale
-    public float maxScale = 1.5f;      // Max tree scale
+    public GameObject[] treePrefabs;
+    public int maxTrees = 10;
 
-    [Header("Terrain & Road Settings")]
-    public float planeSize = 40f;      // Width and length of your plane (assumed square)
-    public float roadHalfWidth = 5f;   // Half-width of the road (adjust to your road width)
+    [Tooltip("Final scale applied to trees (prefab scale should be 1,1,1)")]
+    public float minScale = 0.25f;
+    public float maxScale = 0.45f;
+
+    [Header("Ground Settings")]
+    public float planeSize = 40f;
+
+    [Tooltip("Half width of the road + safety buffer")]
+    public float roadHalfWidth = 7f;
 
     [Header("Layers")]
-    public LayerMask groundLayerMask;  // Layer mask for the ground/plane
+    public LayerMask groundLayerMask;
 
     void Start()
     {
@@ -21,48 +25,54 @@ public class EnvironmentSpawner : MonoBehaviour
     }
 
     void SpawnTrees()
+{
+    if (treePrefabs == null || treePrefabs.Length == 0)
     {
-        int spawned = 0;
-        int maxAttempts = maxTrees * 10;  // Prevent infinite loops
-        int attempts = 0;
+        Debug.LogError("No tree prefabs assigned!", this);
+        return;
+    }
 
-        while (spawned < maxTrees && attempts < maxAttempts)
+    int spawned = 0;
+    int attempts = 0;
+    int maxAttempts = maxTrees * 10;
+
+    while (spawned < maxTrees && attempts < maxAttempts)
+    {
+        attempts++;
+
+        float localX = Random.Range(-planeSize / 2f, planeSize / 2f);
+        float localZ = Random.Range(-planeSize / 2f, planeSize / 2f);
+
+        Vector3 rayOrigin = transform.TransformPoint(
+            new Vector3(localX, 50f, localZ)
+        );
+
+        if (Physics.Raycast(rayOrigin, Vector3.down, out RaycastHit hit, 100f))
         {
-            attempts++;
-
-            // Random position on the plane
-            float x = Random.Range(-planeSize / 2f, planeSize / 2f);
-            float z = Random.Range(-planeSize / 2f, planeSize / 2f);
-
-            // Skip positions that fall inside road boundaries
-            if (Mathf.Abs(x) < roadHalfWidth)
+            // ❌ If we hit ROAD, skip
+            if (hit.collider.gameObject.layer == LayerMask.NameToLayer("Road"))
                 continue;
 
-            Vector3 rayOrigin = new Vector3(x, 100f, z);
-            RaycastHit hit;
+            // ❌ If we didn’t hit ground, skip
+            if (hit.collider.gameObject.layer != LayerMask.NameToLayer("Ground"))
+                continue;
 
-            // Raycast down to find exact ground height
-            if (Physics.Raycast(rayOrigin, Vector3.down, out hit, 200f, groundLayerMask))
-            {
-                Vector3 spawnPos = hit.point;
+            GameObject prefab =
+                treePrefabs[Random.Range(0, treePrefabs.Length)];
 
-                // Choose a random tree prefab
-                GameObject treePrefab = treePrefabs[Random.Range(0, treePrefabs.Length)];
+            GameObject tree = Instantiate(
+                prefab,
+                hit.point,
+                Quaternion.identity,
+                transform
+            );
 
-                // Instantiate the tree
-                GameObject treeInstance = Instantiate(treePrefab, spawnPos, Quaternion.identity, transform);
+            float scale = Random.Range(minScale, maxScale);
+            tree.transform.localScale *= scale;
+            tree.transform.Rotate(0f, Random.Range(0f, 360f), 0f);
 
-                // Randomize tree scale uniformly
-                float scale = Random.Range(minScale, maxScale);
-                treeInstance.transform.localScale = Vector3.one * scale;
-
-                // Optional: Random rotation around Y axis for variety
-                float rotY = Random.Range(0f, 360f);
-                treeInstance.transform.Rotate(0f, rotY, 0f);
-
-                spawned++;
-            }
-            // If raycast missed ground, discard and try again
+            spawned++;
         }
     }
+}
 }
