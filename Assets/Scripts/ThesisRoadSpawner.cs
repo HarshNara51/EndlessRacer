@@ -4,12 +4,8 @@ using UnityEngine;
 public class ThesisRoadSpawner : MonoBehaviour
 {
     [Header("Road Prefabs")]
-    public GameObject[] roadPrefabs;   // 0 = Straight
+    public GameObject[] roadPrefabs;   // 0 = Straight, 1 = Curve, etc.
     public Transform playerCar;
-
-    [Header("Environment")]
-    public GameObject envChunkPrefab;
-    public Transform environmentManager;
 
     [Header("Generation Settings")]
     public int initialTiles = 5;
@@ -70,21 +66,8 @@ public class ThesisRoadSpawner : MonoBehaviour
 
         previousExitPoint = GetChildRecursive(tile.transform, "ExitPoint");
 
-        // -------- ENV CHUNK --------
-        GameObject env = Instantiate(envChunkPrefab);
-        env.transform.SetParent(environmentManager);
-
-        // Match road transform (SAFE)
-        env.transform.position = tile.transform.position;
-        env.transform.rotation = tile.transform.rotation;
-        env.transform.localScale = Vector3.one;
-
-        RoadEnvLink link = tile.AddComponent<RoadEnvLink>();
-        link.envChunk = env;
-        // ---------------------------
-
         if (enableDebugLogs)
-            Debug.Log("[SPAWNED] Road + EnvChunk");
+            Debug.Log("[SPAWNED] Road tile: " + tile.name);
     }
 
     // ===================== ALIGNMENT =====================
@@ -118,15 +101,11 @@ public class ThesisRoadSpawner : MonoBehaviour
 
         if (dist > destroyDistance)
         {
-            RoadEnvLink link = oldest.GetComponent<RoadEnvLink>();
-            if (link != null && link.envChunk != null)
-                Destroy(link.envChunk);
-
             activeTiles.RemoveAt(0);
             Destroy(oldest);
 
             if (enableDebugLogs)
-                Debug.Log("[DESTROYED] Road + EnvChunk");
+                Debug.Log("[DESTROYED] Road tile");
         }
     }
 
