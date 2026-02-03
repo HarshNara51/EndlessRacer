@@ -41,7 +41,6 @@ GameObject:
   m_Component:
   - component: {fileID: 5648692745401275388}
   - component: {fileID: 8434218566311882950}
-  - component: {fileID: 7785893010702374399}
   - component: {fileID: 968246639315482203}
   m_Layer: 9
   m_Name: Road_Curve_3
@@ -81,39 +80,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: bfe50249c7687b74f85771e501cf97b1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DebugVisualizer
---- !u!114 &7785893010702374399
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 687159399550519153}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 0afef8d692789bf4b8bb31224119ae0a, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::RoadEnvironmentSpawner
-  treePrefabs:
-  - {fileID: 1337982263917811756, guid: dd75fc68dd7262c4bafa6d72a7c4e9e6, type: 3}
-  - {fileID: 5637829501264808660, guid: e29ba9b976c1993458facc3679d20da1, type: 3}
-  - {fileID: 5626961931756496618, guid: ce97870f08fa07248aeae057e8f3cab2, type: 3}
-  - {fileID: 7220289839334177436, guid: 5f80bd88fbfcb574eb58ce17a86b6ccc, type: 3}
-  - {fileID: 1793914502715363829, guid: 24fc286601c9a38469bf5d6ff198e6b6, type: 3}
-  - {fileID: 8313284722118469703, guid: 6799c8a424dc94d4abd993291300af12, type: 3}
-  - {fileID: 4549929616358093473, guid: a6a1799cdec4a8c48a10db6c77b47c0f, type: 3}
-  treeCount: 15
-  spawnAreaWidth: 50
-  spawnAreaLength: 50
-  roadAvoidanceDistance: 8
-  minScale: 0.1
-  maxScale: 0.3
-  groundLayer:
-    serializedVersion: 2
-    m_Bits: 128
-  roadLayer:
-    serializedVersion: 2
-    m_Bits: 512
-  showDebugGizmos: 1
 --- !u!114 &968246639315482203
 MonoBehaviour:
   m_ObjectHideFlags: 0

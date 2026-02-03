@@ -4,13 +4,17 @@ using UnityEngine;
 public class ThesisRoadSpawner : MonoBehaviour
 {
     [Header("Road Prefabs")]
-    public GameObject[] roadPrefabs;   // 0 = Straight, 1 = Curve, etc.
+    public GameObject straightPrefab;
+    public GameObject[] curvePrefabs;
+
+    [Header("References")]
     public Transform playerCar;
+    public Camera mainCamera;
 
     [Header("Generation Settings")]
     public int initialTiles = 5;
     public float spawnDistance = 150f;
-    public float destroyDistance = 120f;
+    public float destroyDistance = 40f;
 
     [Header("Debug")]
     public bool enableDebugLogs = true;
@@ -18,24 +22,38 @@ public class ThesisRoadSpawner : MonoBehaviour
     // Runtime
     private List<GameObject> activeTiles = new List<GameObject>();
     private Transform previousExitPoint;
+    private bool gameStarted = false;
 
-    // Fair randomness
+    // Shuffle bag (curves only)
     private List<int> shuffleBag = new List<int>();
+
+    // ===================== UNITY =====================
 
     void Start()
     {
         RefillShuffleBag();
 
-        SpawnTile(0, true); // first straight
+        SpawnFirstTile();
+
         for (int i = 0; i < initialTiles; i++)
             SpawnNextTile();
     }
 
     void Update()
     {
-        if (playerCar == null || previousExitPoint == null)
+        if (playerCar == null || previousExitPoint == null || mainCamera == null)
             return;
 
+        // Prevent start-frame chaos
+        if (!gameStarted)
+        {
+            if (Vector3.Distance(playerCar.position, Vector3.zero) > 3f)
+                gameStarted = true;
+            else
+                return;
+        }
+
+        // Spawn ahead
         if (Vector3.Distance(playerCar.position, previousExitPoint.position) < spawnDistance)
             SpawnNextTile();
 
@@ -43,6 +61,15 @@ public class ThesisRoadSpawner : MonoBehaviour
     }
 
     // ===================== SPAWN =====================
+
+    void SpawnFirstTile()
+    {
+        GameObject tile = Instantiate(straightPrefab);
+        tile.transform.position = Vector3.zero;
+        tile.transform.rotation = Quaternion.identity;
+
+        FinalizeTile(tile);
+    }
 
     void SpawnNextTile()
     {
@@ -52,10 +79,8 @@ public class ThesisRoadSpawner : MonoBehaviour
         int index = shuffleBag[0];
         shuffleBag.RemoveAt(0);
 
-        GameObject tile = Instantiate(roadPrefabs[index]);
-        AlignTileUsingEntryExit(tile);
-        Physics.SyncTransforms();
-
+        GameObject tile = Instantiate(curvePrefabs[index]);
+        AlignTile(tile);
         FinalizeTile(tile);
     }
 
@@ -67,25 +92,27 @@ public class ThesisRoadSpawner : MonoBehaviour
         previousExitPoint = GetChildRecursive(tile.transform, "ExitPoint");
 
         if (enableDebugLogs)
-            Debug.Log("[SPAWNED] Road tile: " + tile.name);
+            Debug.Log("[SPAWNED] " + tile.name);
     }
 
     // ===================== ALIGNMENT =====================
 
-    void AlignTileUsingEntryExit(GameObject tile)
+    void AlignTile(GameObject tile)
     {
         Transform entry = GetChildRecursive(tile.transform, "EntryPoint");
         if (entry == null || previousExitPoint == null)
             return;
 
-        Quaternion rotationDiff = Quaternion.Inverse(entry.localRotation);
-        tile.transform.rotation = previousExitPoint.rotation * rotationDiff;
+        // Rotate so entry forward matches previous exit forward
+        Quaternion rotation = Quaternion.FromToRotation(entry.forward, previousExitPoint.forward);
+        tile.transform.rotation = rotation * tile.transform.rotation;
 
-        Vector3 offset = entry.position - tile.transform.position;
-        tile.transform.position = previousExitPoint.position - offset;
+        // Move so entry position matches exit position
+        Vector3 offset = previousExitPoint.position - entry.position;
+        tile.transform.position += offset;
     }
 
-    // ===================== DESTROY =====================
+    // ===================== DESTROY (HYBRID LOGIC) =====================
 
     void DestroyOldTiles()
     {
@@ -97,16 +124,39 @@ public class ThesisRoadSpawner : MonoBehaviour
         if (exit == null)
             return;
 
-        float dist = Vector3.Distance(playerCar.position, exit.position);
+        Vector3 toPlayer = playerCar.position - exit.position;
 
-        if (dist > destroyDistance)
+        bool playerPassedExit = Vector3.Dot(exit.forward, toPlayer) > 0f;
+        bool farEnough = toPlayer.magnitude > destroyDistance;
+        bool notVisible = !IsTileVisible(oldest);
+
+        if (playerPassedExit && farEnough && notVisible)
         {
             activeTiles.RemoveAt(0);
             Destroy(oldest);
 
             if (enableDebugLogs)
-                Debug.Log("[DESTROYED] Road tile");
+                Debug.Log("[DESTROYED] " + oldest.name);
         }
+    }
+
+    // ===================== CAMERA VISIBILITY =====================
+
+    bool IsTileVisible(GameObject tile)
+    {
+        Renderer[] renderers = tile.GetComponentsInChildren<Renderer>();
+        if (renderers.Length == 0)
+            return false;
+
+        Plane[] planes = GeometryUtility.CalculateFrustumPlanes(mainCamera);
+
+        foreach (Renderer r in renderers)
+        {
+            if (GeometryUtility.TestPlanesAABB(planes, r.bounds))
+                return true;
+        }
+
+        return false;
     }
 
     // ===================== SHUFFLE BAG =====================
@@ -114,36 +164,17 @@ public class ThesisRoadSpawner : MonoBehaviour
     void RefillShuffleBag()
     {
         shuffleBag.Clear();
-        for (int i = 0; i < roadPrefabs.Length; i++)
+        for (int i = 0; i < curvePrefabs.Length; i++)
             shuffleBag.Add(i);
 
-        Shuffle(shuffleBag);
-    }
-
-    void Shuffle(List<int> list)
-    {
-        for (int i = 0; i < list.Count; i++)
+        for (int i = 0; i < shuffleBag.Count; i++)
         {
-            int rnd = Random.Range(i, list.Count);
-            (list[i], list[rnd]) = (list[rnd], list[i]);
+            int rnd = Random.Range(i, shuffleBag.Count);
+            (shuffleBag[i], shuffleBag[rnd]) = (shuffleBag[rnd], shuffleBag[i]);
         }
     }
 
     // ===================== UTIL =====================
-
-    void SpawnTile(int index, bool isFirst)
-    {
-        GameObject tile = Instantiate(roadPrefabs[index]);
-
-        if (isFirst)
-        {
-            tile.transform.position = Vector3.zero;
-            tile.transform.rotation = Quaternion.identity;
-        }
-
-        Physics.SyncTransforms();
-        FinalizeTile(tile);
-    }
 
     Transform GetChildRecursive(Transform parent, string name)
     {
