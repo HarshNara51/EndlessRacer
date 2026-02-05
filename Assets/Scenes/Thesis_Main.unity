@@ -735,7 +735,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7436059351856633236, guid: f41fc8de3b857f04b8ab582ab168e44e, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 0.5
+      value: 1.7
       objectReference: {fileID: 0}
     - target: {fileID: 7436059351856633236, guid: f41fc8de3b857f04b8ab582ab168e44e, type: 3}
       propertyPath: m_LocalPosition.z
@@ -905,24 +905,26 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1759469781}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 67010ca4aafa10f41be1943f04c742dd, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ThesisRoadSpawner
-  straightPrefab: {fileID: 622161187429420433, guid: 0b529b9ca2222ab4e8b16196eac1276f, type: 3}
-  curvePrefabs:
+  roadSequence:
+  - {fileID: 622161187429420433, guid: 0b529b9ca2222ab4e8b16196eac1276f, type: 3}
+  - {fileID: 622161187429420433, guid: 0b529b9ca2222ab4e8b16196eac1276f, type: 3}
   - {fileID: 5408307612148455822, guid: bf5f74f026366124abd5173bc131db6f, type: 3}
+  - {fileID: 622161187429420433, guid: 0b529b9ca2222ab4e8b16196eac1276f, type: 3}
   - {fileID: 7327571738113190490, guid: 1c6fbfdd387309e4db9d97d22a828516, type: 3}
   - {fileID: 687159399550519153, guid: aa35c152dea87b749a8f9fb3cc0a888e, type: 3}
-  - {fileID: 1355121364217057826, guid: e0f062d773cf93c4da63f0c30955b4f1, type: 3}
-  - {fileID: 1688716250183764395, guid: 1bd316f883501464697ab9690228d98e, type: 3}
+  - {fileID: 622161187429420433, guid: 0b529b9ca2222ab4e8b16196eac1276f, type: 3}
   - {fileID: 2611502644018053759, guid: 0c65e110751672940932e679191186fa, type: 3}
+  - {fileID: 1688716250183764395, guid: 1bd316f883501464697ab9690228d98e, type: 3}
+  - {fileID: 1355121364217057826, guid: e0f062d773cf93c4da63f0c30955b4f1, type: 3}
   playerCar: {fileID: 1897467788}
   mainCamera: {fileID: 961739752}
   initialTiles: 1
   spawnDistance: 15
-  destroyDistance: 1.5
   enableDebugLogs: 1
 --- !u!4 &1759469783
 Transform:

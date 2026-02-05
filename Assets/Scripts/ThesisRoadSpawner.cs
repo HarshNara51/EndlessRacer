@@ -3,18 +3,16 @@ using UnityEngine;
 
 public class ThesisRoadSpawner : MonoBehaviour
 {
-    [Header("Road Prefabs")]
-    public GameObject straightPrefab;
-    public GameObject[] curvePrefabs;
+    [Header("Sequential Road Pattern (ORDER MATTERS)")]
+    public List<GameObject> roadSequence;
 
     [Header("References")]
     public Transform playerCar;
     public Camera mainCamera;
 
     [Header("Generation Settings")]
-    public int initialTiles = 5;
-    public float spawnDistance = 150f;
-    public float destroyDistance = 40f;
+    public int initialTiles = 1;
+    public float spawnDistance = 15f;
 
     [Header("Debug")]
     public bool enableDebugLogs = true;
@@ -23,15 +21,24 @@ public class ThesisRoadSpawner : MonoBehaviour
     private List<GameObject> activeTiles = new List<GameObject>();
     private Transform previousExitPoint;
     private bool gameStarted = false;
-
-    // Shuffle bag (curves only)
-    private List<int> shuffleBag = new List<int>();
+    private int sequenceIndex = 0;
 
     // ===================== UNITY =====================
 
+    void Awake()
+    {
+        Debug.Log($"[RoadSpawner][{Time.time:F2}s] AWAKE");
+    }
+
     void Start()
     {
-        RefillShuffleBag();
+        if (roadSequence == null || roadSequence.Count == 0)
+        {
+            Debug.LogError("[RoadSpawner] Road sequence is EMPTY!");
+            return;
+        }
+
+        Debug.Log($"[RoadSpawner] Sequence size = {roadSequence.Count}");
 
         SpawnFirstTile();
 
@@ -41,58 +48,64 @@ public class ThesisRoadSpawner : MonoBehaviour
 
     void Update()
     {
-        if (playerCar == null || previousExitPoint == null || mainCamera == null)
+        if (playerCar == null || previousExitPoint == null)
             return;
 
-        // Prevent start-frame chaos
         if (!gameStarted)
         {
             if (Vector3.Distance(playerCar.position, Vector3.zero) > 3f)
+            {
                 gameStarted = true;
+                Debug.Log($"[RoadSpawner][{Time.time:F2}s] Game started");
+            }
             else
                 return;
         }
 
-        // Spawn ahead
-        if (Vector3.Distance(playerCar.position, previousExitPoint.position) < spawnDistance)
-            SpawnNextTile();
+        float dist = Vector3.Distance(playerCar.position, previousExitPoint.position);
 
-        DestroyOldTiles();
+        if (dist < spawnDistance)
+        {
+            SpawnNextTile();
+        }
     }
 
     // ===================== SPAWN =====================
 
     void SpawnFirstTile()
     {
-        GameObject tile = Instantiate(straightPrefab);
+        GameObject tile = Instantiate(roadSequence[0]);
         tile.transform.position = Vector3.zero;
         tile.transform.rotation = Quaternion.identity;
 
+        sequenceIndex = 1;
         FinalizeTile(tile);
+
+        Debug.Log($"[SPAWN][{Time.time:F2}s] FIRST → {tile.name}");
     }
 
     void SpawnNextTile()
     {
-        if (shuffleBag.Count == 0)
-            RefillShuffleBag();
+        if (sequenceIndex >= roadSequence.Count)
+            sequenceIndex = 0;
 
-        int index = shuffleBag[0];
-        shuffleBag.RemoveAt(0);
+        GameObject tile = Instantiate(roadSequence[sequenceIndex]);
+        sequenceIndex++;
 
-        GameObject tile = Instantiate(curvePrefabs[index]);
         AlignTile(tile);
         FinalizeTile(tile);
+
+        Debug.Log($"[SPAWN][{Time.time:F2}s] NEXT → {tile.name}");
+
+        // 🔥 HARD CLEANUP: KEEP ONLY 2 TILES
+        DestroyAllButLastTwo();
     }
 
     void FinalizeTile(GameObject tile)
     {
         tile.transform.SetParent(transform);
         activeTiles.Add(tile);
-
         previousExitPoint = GetChildRecursive(tile.transform, "ExitPoint");
-
-        if (enableDebugLogs)
-            Debug.Log("[SPAWNED] " + tile.name);
     }
 
     // ===================== ALIGNMENT =====================
@@ -103,74 +116,24 @@ public class ThesisRoadSpawner : MonoBehaviour
         if (entry == null || previousExitPoint == null)
             return;
 
-        // Rotate so entry forward matches previous exit forward
-        Quaternion rotation = Quaternion.FromToRotation(entry.forward, previousExitPoint.forward);
-        tile.transform.rotation = rotation * tile.transform.rotation;
+        Quaternion rot = Quaternion.FromToRotation(entry.forward, previousExitPoint.forward);
+        tile.transform.rotation = rot * tile.transform.rotation;
 
-        // Move so entry position matches exit position
         Vector3 offset = previousExitPoint.position - entry.position;
         tile.transform.position += offset;
     }
 
-    // ===================== DESTROY (HYBRID LOGIC) =====================
+    // ===================== HARD DESTROY =====================
 
-    void DestroyOldTiles()
+    void DestroyAllButLastTwo()
     {
-        if (activeTiles.Count == 0)
-            return;
-
-        GameObject oldest = activeTiles[0];
-        Transform exit = GetChildRecursive(oldest.transform, "ExitPoint");
-        if (exit == null)
-            return;
-
-        Vector3 toPlayer = playerCar.position - exit.position;
-
-        bool playerPassedExit = Vector3.Dot(exit.forward, toPlayer) > 0f;
-        bool farEnough = toPlayer.magnitude > destroyDistance;
-        bool notVisible = !IsTileVisible(oldest);
-
-        if (playerPassedExit && farEnough && notVisible)
+        while (activeTiles.Count > 2)
         {
+            GameObject old = activeTiles[0];
             activeTiles.RemoveAt(0);
-            Destroy(oldest);
+            Destroy(old);
 
-            if (enableDebugLogs)
-                Debug.Log("[DESTROYED] " + oldest.name);
-        }
-    }
-
-    // ===================== CAMERA VISIBILITY =====================
-
-    bool IsTileVisible(GameObject tile)
-    {
-        Renderer[] renderers = tile.GetComponentsInChildren<Renderer>();
-        if (renderers.Length == 0)
-            return false;
-
-        Plane[] planes = GeometryUtility.CalculateFrustumPlanes(mainCamera);
-
-        foreach (Renderer r in renderers)
-        {
-            if (GeometryUtility.TestPlanesAABB(planes, r.bounds))
-                return true;
-        }
-
-        return false;
-    }
-
-    // ===================== SHUFFLE BAG =====================
-
-    void RefillShuffleBag()
-    {
-        shuffleBag.Clear();
-        for (int i = 0; i < curvePrefabs.Length; i++)
-            shuffleBag.Add(i);
-
-        for (int i = 0; i < shuffleBag.Count; i++)
-        {
-            int rnd = Random.Range(i, shuffleBag.Count);
-            (shuffleBag[i], shuffleBag[rnd]) = (shuffleBag[rnd], shuffleBag[i]);
+            Debug.Log($"[FORCE DESTROY][{Time.time:F2}s] {old.name}");
         }
     }
 
