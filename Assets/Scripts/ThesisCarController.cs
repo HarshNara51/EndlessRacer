@@ -16,12 +16,11 @@ public class ThesisCarController : MonoBehaviour
     
     [Header("Suspension")]
     public float rideHeightOffset = 0.5f; 
-    public float raycastLength = 3.0f;    
+    public float raycastLength = 5.0f;     // Default length (increase in Inspector if needed)
 
     [Header("Visuals")]
     public Transform[] wheels;          
     public float wheelSpinSpeed = 100f;
-    // Removed "bodyTiltAmount" and "visualModel" since we don't want tilt anymore
 
     [Header("UI")]
     public TMP_Text speedometerText;
@@ -63,7 +62,6 @@ public class ThesisCarController : MonoBehaviour
             float turnInput = Input.GetAxis("Horizontal"); 
             float direction = currentSpeed > 0 ? 1 : -1;
             
-            // Just rotate the car normally. No "Visual Tilt" code here anymore.
             transform.Rotate(Vector3.up * turnInput * turnSpeed * Time.deltaTime * direction);
         }
     }
@@ -71,21 +69,38 @@ public class ThesisCarController : MonoBehaviour
     void ApplyPhysics()
     {
         RaycastHit hit;
+        
+        // RAYCAST START POINT:
+        // We start 1.0 unit ABOVE the car's pivot.
+        // If your car is huge, the pivot might be underground. 
+        // If you see the Red Line starting underground, increase this 1.0f to 2.0f or 3.0f!
         Vector3 rayOrigin = transform.position + (Vector3.up * 1.0f); 
+
+        // --- VISUAL DEBUGGER (The Fix) ---
+        // This draws a RED line in the Scene View.
+        // If you don't see this line, the script is broken or Gizmos are off.
+        Debug.DrawRay(rayOrigin, Vector3.down * raycastLength, Color.red);
+        // ---------------------------------
 
         if (Physics.Raycast(rayOrigin, Vector3.down, out hit, raycastLength))
         {
+            // FOUND ROAD
             Vector3 targetPosition = transform.position;
             targetPosition.y = hit.point.y + rideHeightOffset; 
+            
+            // Snap to road smoothly
             transform.position = Vector3.MoveTowards(transform.position, targetPosition, stickToRoadForce * Time.deltaTime);
             verticalVelocity = 0; 
         }
         else
         {
+            // NO ROAD FOUND (Falling)
             verticalVelocity -= gravity * Time.deltaTime;
+            // Apply Gravity
             transform.Translate(Vector3.up * verticalVelocity * Time.deltaTime, Space.World);
         }
 
+        // Move Forward
         transform.Translate(transform.forward * currentSpeed * Time.deltaTime, Space.World);
     }
 
